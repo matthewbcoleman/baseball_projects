@@ -1,0 +1,869 @@
+---
+title: "POC Report"
+author: "Matthew Coleman"
+date: "6/30/2019"
+output: pdf_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(fastDummies)
+library(forcats)
+library(DescTools)
+library(knitr)
+```
+
+```{r}
+poc_ult <- read.csv('ultimate_poc.csv')
+poc_all <- read.csv('ultimate_poc_all.csv')
+```
+
+Getting averages, minimums, and maximums for all the players
+```{r}
+poc_gau  <- poc_ult %>% filter(BatterTeam == 'UCSB_GAU') %>% 
+  filter(!is.na(ContactPositionX), PitchCall != 'FoulBall', HitType != 'Bunt', ExitSpeed > 65, ContactPositionX > 0)
+
+summary_contact_feet <- poc_gau %>% group_by(Batter) %>% summarise(mean_contactX = mean(ContactPositionX),
+                                                                   mean_contactY = mean(ContactPositionY),
+                                                                   mean_contactZ = mean(ContactPositionZ),
+                                                                   max_contactX = max(ContactPositionX),
+                                                                   max_contactY = max(ContactPositionY),
+                                                                   max_contactZ = max(ContactPositionZ),
+                                                                   min_contactX = min(ContactPositionX),
+                                                                   min_contactY = min(ContactPositionY),
+                                                                   min_contactZ = min(ContactPositionZ)
+                                                                   )
+
+#Every players points of contact in inches
+
+summary_contact <- summary_contact_feet
+summary_contact[,2:10] <- summary_contact[,2:10] * 12
+
+#summary_contact$mean_contactX <- summary_contact_feet$mean_contactX * 12
+#summary_contact$mean_contactY <- summary_contact_feet$mean_contactY * 12
+#summary_contact$mean_contactZ <- summary_contact_feet$mean_contactZ * 12
+
+```
+
+Subsetting the data points that do not involve foul balls and selecting relevant variables. Also choosing hits where the point of the contact z (POCz) is between -3.325<z<3.325. POCz is the distance that runs parallel to the front of the plate. This distance is the middle third of the strike zone. 
+```{r}
+poc_players <- poc_gau %>% filter(PitchCall != 'FoulBall', HitType != 'Bunt')
+
+poc_players$ContactPositionX <- poc_players$ContactPositionX*12
+poc_players$ContactPositionY <- poc_players$ContactPositionY*12
+poc_players$ContactPositionZ <- poc_players$ContactPositionZ*12
+
+#Below code will allow us to plot all the batters by group
+plot_dat <- poc_players %>% filter(ExitSpeed > 65, ContactPositionX > 0) %>% select(Batter, contact_x = ContactPositionX ,contact_y=ContactPositionY,
+                                   contact_z =ContactPositionZ, exit_velo = ExitSpeed, vert_launch =
+                                   Angle, horiz_launch = Direction, PlayResult, MaxHeight) %>% 
+                                    group_by(Batter) %>% arrange(Batter)
+
+#plot_dat$contact_x <- plot_dat$contact_x*12
+#plot_dat$contact_y <- plot_dat$contact_y*12
+#plot_dat$contact_z <- plot_dat$contact_z*12
+
+#plot_dat <- plot_dat %>% filter(contact_z < 3.325 & contact_z >-3.325)
+```
+
+\newpage
+
+Marcos Castanon: 
+```{r}
+castanon <- plot_dat %>% filter(Batter == 'Castanon, Marcos')
+ggplot(data = castanon, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F) +
+  geom_vline(xintercept = 25.18) + 
+  geom_text(aes(x=28,  y=75),label= 'Mean = 25.18' ,  size = 3) 
+  
+  
+```
+
+Marcos Castanon (SMOOTHED):
+```{r}
+castanon <- plot_dat %>% filter(Batter == 'Castanon, Marcos')
+ggplot(data = castanon, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1) +
+  geom_vline(xintercept = 25.18, linetype = 'dashed', size = 1) + 
+  geom_text(aes(x=28,  y=75),label= 'Mean = 25.18' ,  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = 'Exit Velo vs. X Contact for Marcos Castanon' ) 
+  
+  
+```
+
+```{r, include = F}
+ggplot(data = castanon, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F) #+
+  #geom_vline(xintercept = 27.10034) + 
+  #geom_text(aes(x=25, label="Average Contact = 27.1034", y=70),  size = 3)
+```
+
+\newpage
+Tommy Jew:
+```{r}
+jew <- plot_dat %>% filter(Batter == 'Jew, Tommy')
+ggplot(data = jew, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F) +
+  geom_vline(xintercept = 18.64) +
+  geom_text(aes(x=13, label="Average Contact = 18.64", y=50),  size = 3)
+  
+```
+
+Tommy Jew (SMOOTHED):
+```{r}
+jew <- plot_dat %>% filter(Batter == 'Jew, Tommy')
+ggplot(data = jew, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1) +
+  geom_vline(xintercept = 18.64, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=13, label="Average Contact = 18.64", y=50),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = 'Exit Velo vs. X Contact for Tommy Jew' )
+  
+```
+
+```{r, include = F}
+ggplot(data = jew, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Kyle Johnson: (UNSMOOTHED)
+```{r}
+johnson <- plot_dat %>% filter(Batter == 'Johnson, Kyle')
+ggplot(data = johnson, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F) +
+  geom_vline(xintercept = 24.29701)
+```
+
+Kyle Johnson: (SMOOTHED)
+```{r}
+johnson <- plot_dat %>% filter(Batter == 'Johnson, Kyle')
+ggplot(data = johnson, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1) +
+  geom_vline(xintercept = 24.68, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=18, label="Average Contact = 24.68", y=65),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = 'Exit Velo vs. X Contact for Kyle Johnson' )
+```
+
+```{r, include = F}
+ggplot(data = johnson, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Christian Kirtley:
+```{r}
+kirtley <- plot_dat %>% filter(Batter == 'Kirtley, Christian')
+ggplot(data = kirtley, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 17.14)
+```
+
+Christian Kirtley (SMOOTHED):
+```{r}
+kirtley <- plot_dat %>% filter(Batter == 'Kirtley, Christian')
+ggplot(data = kirtley, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 17.14, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=22, label="Average Contact = 17.14", y=70),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = 'Exit Velo vs. X Contact for Christian Kirtley' )
+```
+
+```{r, include = F}
+ggplot(data = kirtley, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Andrew Martinez: (UNSMOOTHED)
+```{r}
+amartinez <- plot_dat %>% filter(Batter == 'Martinez, Andrew')
+ggplot(data = amartinez, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 15.02344)
+```
+
+Andrew Martinez: (SMOOTHED)
+```{r}
+amartinez <- plot_dat %>% filter(Batter == 'Martinez, Andrew')
+ggplot(data = amartinez, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 14.55, linetype = 'dashed', size = 1) + 
+  geom_text(aes(x=20, y = 80, label="Average Contact = 14.55"),  size = 3)+
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = 'Exit Velo vs. X Contact for Andrew Martinez' )
+```
+
+```{r, include = F}
+ggplot(data = amartinez, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Tevin Mitchell: (UNSMOOTHED)
+```{r}
+mitchell <- plot_dat %>% filter(Batter == 'Mitchell, Tevin')
+ggplot(data = mitchell, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 17.57452)
+```
+
+Tevin Mitchell: (SMOOTHED)
+```{r}
+mitchell <- plot_dat %>% filter(Batter == 'Mitchell, Tevin')
+ggplot(data = mitchell, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 18.13, show.legend = T, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=25, label="Average Contact = 18.13", y=70),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = 'Exit Velo vs. X Contact for Tevin Mitchell' )
+```
+
+```{r, include = F}
+ggplot(data = mitchell, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Cole Mueller
+```{r}
+mueller <- plot_dat %>% filter(Batter == 'Mueller, Cole')
+ggplot(data = mueller, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 25.07482)
+```
+
+Cole Mueller (SMOOTHED):
+```{r}
+mueller <- plot_dat %>% filter(Batter == 'Mueller, Cole')
+ggplot(data = mueller, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 22.26, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=17, label="Average Contact = 22.26", y=75),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = 'Exit Velo vs. X Contact for Cole Mueller' )
+
+```
+
+
+
+```{r, include = F}
+ggplot(data = mueller, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+McClain O'Connor
+```{r}
+oconnor <- plot_dat %>% filter(Batter == "O'Connor, McClain")
+ggplot(data = oconnor, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 22.44) +
+  geom_text(aes(x=17, label="Average Contact = 22.44", y=70),  size = 3) 
+```
+
+McClain O'Connor (SMOOTHED):
+```{r}
+oconnor <- plot_dat %>% filter(Batter == "O'Connor, McClain")
+ggplot(data = oconnor, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 22.44, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=17, label="Average Contact = 22.44", y=70),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = "Exit Velo vs. X Contact for McClain O'Connor" )
+```
+
+
+
+```{r, include = F}
+ggplot(data = oconnor, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Thomas Rowan: (UNSMOOTHED)
+```{r}
+rowan <- plot_dat %>% filter(Batter == "Rowan, Thomas")
+ggplot(data = rowan, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 20.81871)
+```
+
+Thomas Rowan: (SMOOTHED)
+```{r}
+rowan <- plot_dat %>% filter(Batter == "Rowan, Thomas")
+ggplot(data = rowan, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 20.79, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=15, y = 65, label="Average Contact = 20.79"),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = "Exit Velo vs. X Contact for Thomas Rowan" )
+```
+
+
+```{r, include = F}
+ggplot(data = rowan, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Armani Smith
+```{r}
+smith <- plot_dat %>% filter(Batter == "Smith, Armani")
+ggplot(data = smith, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 19.54)
+```
+
+Armani Smith (SMOOTHED):
+```{r}
+smith <- plot_dat %>% filter(Batter == "Smith, Armani")
+ggplot(data = smith, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 19.54, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=27, y = 68, label="Average Contact = 19.54"),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = "Exit Velo vs. X Contact for Armani Smith" )
+```
+
+```{r, include = F}
+ggplot(data = smith, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Jason Willow
+```{r}
+willow <- plot_dat %>% filter(Batter == "Willow, Jason")
+ggplot(data = willow, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)+
+  geom_vline(xintercept = 26.94288)
+```
+
+Jason Willow (SMOOTHED):
+```{r}
+willow <- plot_dat %>% filter(Batter == "Willow, Jason")
+ggplot(data = willow, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1)+
+  geom_vline(xintercept = 27.82, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=24, y = 75, label="Average Contact = 27.82"),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = "Exit Velo vs. X Contact for Jason Willow" )
+```
+
+
+```{r, include = F}
+ggplot(data = willow, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+Eric Yang:
+```{r}
+yang <- plot_dat %>% filter(Batter == "Yang, Eric")
+ggplot(data = yang, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F) +
+  geom_vline(xintercept = 25.29346)
+```
+
+Eric Yang (SMOOTHED):
+```{r}
+yang <- plot_dat %>% filter(Batter == "Yang, Eric")
+ggplot(data = yang, aes(x = contact_x, y = exit_velo)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F, span = 1) +
+  geom_vline(xintercept = 25.22, linetype = 'dashed', size = 1) +
+  geom_text(aes(x=24, y = 75, label="Average Contact = 25.22"),  size = 3) +
+  labs(x = 'X Contact (Inches)', y = 'Exit Velocity (MPH)', title = "Exit Velo vs. X Contact for Eric Yang" )
+```
+
+```{r, include = F}
+ggplot(data = yang, aes(x = contact_x, y = horiz_launch)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'green', se = F) +
+  geom_smooth(method = 'gam',color = 'red',se = F) +
+  geom_smooth(method = 'loess', color = 'blue', se = F)
+```
+
+\newpage
+# Logistic Regression Analysis:
+
+Creating dummy variables of the data so that I can try a logistic regression. 
+
+```{r}
+
+new_data <- dummy_cols(plot_dat, select_columns = "PlayResult")
+
+```
+
+
+Armani Smith HR:
+```{r}
+new_smith <- new_data %>% filter(Batter == "Smith, Armani")
+ggplot(data = new_smith, aes(x = contact_x, y = PlayResult_HomeRun)) + 
+  stat_smooth(method = 'loess',  se = F) + 
+  geom_point()
+```
+
+Armani Smith Single:
+```{r}
+new_smith <- new_data %>% filter(Batter == "Smith, Armani")
+ggplot(data = new_smith, aes(x = contact_x, y = PlayResult_Single)) + 
+  stat_smooth(method = 'loess',  se = F) + 
+  geom_point()
+```
+
+
+Armani Smith Out:
+```{r}
+new_smith <- new_data %>% filter(Batter == "Smith, Armani")
+ggplot(data = new_smith, aes(x = contact_x, y = PlayResult_Out)) + 
+  stat_smooth(method = 'loess',  se = F) + 
+  geom_point()
+```
+
+\newpage
+
+## Table Creation 
+
+# Make note about removing values higher than (40,45] bc values become weird
+
+### Table containing the average and SD of each players POC,exit velo > 90
+```{r}
+indiv_table <-poc_players %>% filter(ExitSpeed > 90) %>% group_by(Batter) %>% summarise(Sample = n(), `Mean x Contact` = mean(ContactPositionX), `Std. Dev.` = sd(ContactPositionX)) %>% filter(Sample > 10)
+
+#kable(indiv_table, caption = "sd table")
+```
+
+### Table containing the average and SD of each players POC, 0 <pocx < 45 (Same)
+```{r}
+indiv_table_dist <-poc_players %>% filter(ExitSpeed > 90, ContactPositionX > 0, ContactPositionX <= 45) %>% 
+  group_by(Batter) %>% 
+  summarise(Sample = n(), `Mean x Contact` = mean(ContactPositionX), 
+  `Std. Dev.` = sd(ContactPositionX)) %>% filter(Sample > 10)
+
+kable(indiv_table, caption = "sd table")
+```
+
+### Table for Home UCSB Games (Excluding Away Teams)
+
+#### Overall (Make note the entire table is pretty much righties) 
+```{r}
+#poc_players$ContactPositionX <- poc_players$ContactPositionX*12
+#poc_players$ContactPositionY <- poc_players$ContactPositionY*12
+#poc_players$ContactPositionZ <- poc_players$ContactPositionZ*12
+
+#max(poc_players$ContactPositionX)
+
+
+poc_tab_sb <- poc_players %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100 ) #%>% filter(Sample > 15)
+
+poc_tab_sb$Range <- fct_explicit_na(poc_tab_sb$Range, na_level = '(50,55]')
+
+#kable(poc_tab_sb, caption = "Overall UCSB (Without Away Teams)")
+
+poc_tab_sb <- poc_tab_sb[0:9,]
+
+```
+
+#### RHH 
+```{r, include = F}
+poc_players_r <- poc_players %>% filter(PitchCall != 'FoulBall', HitType != 'Bunt', BatterSide == 'Right')
+
+#poc_players_r$ContactPositionX <- poc_players_r$ContactPositionX*12
+#poc_players_r$ContactPositionY <- poc_players_r$ContactPositionY*12
+#poc_players_r$ContactPositionZ <- poc_players_r$ContactPositionZ*12
+
+#max(poc_players$ContactPositionX)
+
+poc_tab_sb_r <- poc_players_r %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100 ) %>% filter(Sample > 15)
+
+poc_tab_sb_r$Range <- fct_explicit_na(poc_tab_sb_r$Range, na_level = '(50,55]')
+
+#kable(poc_tab_sb_r, caption = "Overall UCSB RHH (Without Away Teams)")
+```
+
+
+#### LHH (Only three overall observations, not important)
+```{r, include = F}
+poc_players_l <- poc_players %>% filter(PitchCall != 'FoulBall', HitType != 'Bunt', BatterSide == 'Left')
+
+#poc_players_l$ContactPositionX <- poc_players_l$ContactPositionX*12
+#poc_players_l$ContactPositionY <- poc_players_l$ContactPositionY*12
+#poc_players_l$ContactPositionZ <- poc_players_l$ContactPositionZ*12
+
+#max(poc_players$ContactPositionX)
+
+poc_tab_sb_l <- poc_players_l %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100 ) 
+
+poc_tab_sb_l$Range <- fct_explicit_na(poc_tab_sb_l$Range, na_level = '(50,55]')
+```
+\newpage
+
+### The table for Home UCSB Games (Including Away Teams):
+
+#### Overall
+```{r, include = F}
+poc_tab <- poc_ult %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall')
+
+poc_tab$ContactPositionX <- poc_tab$ContactPositionX * 12
+poc_tab$ContactPositionY <- poc_tab$ContactPositionY * 12
+poc_tab$ContactPositionZ <- poc_tab$ContactPositionZ * 12
+
+
+
+#poc_tab <- poc_tab %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Contact X` =mean(ContactPositionX) )
+
+poc_tab <- poc_tab %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) %>% filter(Sample > 15)
+
+poc_tab$Range <- fct_explicit_na(poc_tab$Range, na_level = '(50,55]')
+
+kable(poc_tab, caption = "Overall UCSB (Including Away Teams)")
+```
+
+
+#### RHH
+```{r, include= F}
+poc_tab_r <- poc_ult %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall', 
+                                BatterSide == 'Right')
+
+poc_tab_r$ContactPositionX <- poc_tab_r$ContactPositionX * 12
+poc_tab_r$ContactPositionY <- poc_tab_r$ContactPositionY * 12
+poc_tab_r$ContactPositionZ <- poc_tab_r$ContactPositionZ * 12
+
+
+
+#poc_tab <- poc_tab %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Contact X` =mean(ContactPositionX) )
+
+poc_tab_r <- poc_tab_r %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) %>% filter(Sample > 15)
+
+poc_tab_r$Range <- fct_explicit_na(poc_tab_r$Range, na_level = '(50,55]')
+
+kable(poc_tab_r, caption = "Overall UCSB RHH (Including Away Teams)")
+```
+
+#### LHH
+```{r, include = F}
+poc_tab_l <- poc_ult %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall', 
+                                BatterSide == 'Left')
+
+poc_tab_l$ContactPositionX <- poc_tab_l$ContactPositionX * 12
+poc_tab_l$ContactPositionY <- poc_tab_l$ContactPositionY * 12
+poc_tab_l$ContactPositionZ <- poc_tab_l$ContactPositionZ * 12
+
+
+
+#poc_tab <- poc_tab %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Contact X` =mean(ContactPositionX) )
+
+poc_tab_l <- poc_tab_l %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) %>% filter(Sample > 15)
+
+poc_tab_l$Range <- fct_explicit_na(poc_tab_l$Range, na_level = '(50,55]')
+
+kable(poc_tab_l, caption = "Overall UCSB LHH (Including Away Teams)")
+
+```
+
+\newpage
+
+### The table for All Games:
+
+#### Overall
+```{r}
+poc_tab_all <- poc_all %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall')
+
+poc_tab_all$ContactPositionX <- poc_tab_all$ContactPositionX * 12
+poc_tab_all$ContactPositionY <- poc_tab_all$ContactPositionY * 12
+poc_tab_all$ContactPositionZ <- poc_tab_all$ContactPositionZ * 12
+
+#max(poc_tab_all$ContactPositionX)
+
+poc_tab_all <- poc_tab_all %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) #%>% filter(Sample > 750)
+
+poc_tab_all$Range <- fct_explicit_na(poc_tab_all$Range, na_level = '(55,60]')
+
+poc_tab_all <- poc_tab_all[0:9,]
+#kable(poc_tab_all, caption = "All FTP Games")
+
+```
+
+
+#### RHH
+```{r}
+poc_tab_all_r <- poc_all %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall',
+                                    BatterSide == 'Right')
+
+poc_tab_all_r$ContactPositionX <- poc_tab_all_r$ContactPositionX * 12
+poc_tab_all_r$ContactPositionY <- poc_tab_all_r$ContactPositionY * 12
+poc_tab_all_r$ContactPositionZ <- poc_tab_all_r$ContactPositionZ * 12
+
+#max(poc_tab_all$ContactPositionX)
+
+poc_tab_all_r <- poc_tab_all_r %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) #%>% filter(Sample > 450)
+
+poc_tab_all_r$Range <- fct_explicit_na(poc_tab_all_r$Range, na_level = '(55,60]')
+
+#kable(poc_tab_all_r, caption = "All FTP Games RHH")
+
+poc_tab_all_r <- poc_tab_all_r[0:9,]
+```
+
+#### LHH
+```{r}
+poc_tab_all_l <- poc_all %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall',
+                                    BatterSide == 'Left')
+
+poc_tab_all_l$ContactPositionX <- poc_tab_all_l$ContactPositionX * 12
+poc_tab_all_l$ContactPositionY <- poc_tab_all_l$ContactPositionY * 12
+poc_tab_all_l$ContactPositionZ <- poc_tab_all_l$ContactPositionZ * 12
+
+#max(poc_tab_all$ContactPositionX)
+
+poc_tab_all_l <- poc_tab_all_l %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) #%>% filter(Sample > 400)
+
+poc_tab_all_l$Range <- fct_explicit_na(poc_tab_all_l$Range, na_level = '(55,60]')
+
+#kable(poc_tab_all_l, caption = "All FTP Games LHH")
+
+poc_tab_all_l <- poc_tab_all_l[0:9,]
+```
+
+#### RHH Fastballs Only (Entire Z Contact)
+```{r}
+poc_tab_all_rf <- poc_all %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall',
+                                    BatterSide == 'Right', TaggedPitchType == 'Fastball')
+
+poc_tab_all_rf$ContactPositionX <- poc_tab_all_rf$ContactPositionX * 12
+poc_tab_all_rf$ContactPositionY <- poc_tab_all_rf$ContactPositionY * 12
+poc_tab_all_rf$ContactPositionZ <- poc_tab_all_rf$ContactPositionZ * 12
+
+#max(poc_tab_all$ContactPositionX)
+
+poc_tab_all_rf <- poc_tab_all_rf %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) %>% filter(Sample > 330)
+
+poc_tab_all_rf$Range <- fct_explicit_na(poc_tab_all_rf$Range, na_level = '(55,60]')
+
+
+#kable(poc_tab_all_rf, caption = "All FTP Games RHH (Fastballs, Entire Z Contact Zone)")
+```
+
+#### LHH Fastballs Only (Entire Z Contact)
+```{r}
+poc_tab_all_lf <- poc_all %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall',
+                                    BatterSide == 'Left', TaggedPitchType == 'Fastball')
+
+poc_tab_all_lf$ContactPositionX <- poc_tab_all_lf$ContactPositionX * 12
+poc_tab_all_lf$ContactPositionY <- poc_tab_all_lf$ContactPositionY * 12
+poc_tab_all_lf$ContactPositionZ <- poc_tab_all_lf$ContactPositionZ * 12
+
+#max(poc_tab_all$ContactPositionX)
+
+poc_tab_all_lf <- poc_tab_all_lf %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) %>% filter(Sample > 225)
+
+poc_tab_all_lf$Range <- fct_explicit_na(poc_tab_all_lf$Range, na_level = '(55,60]')
+
+#kable(poc_tab_all_lf, caption = "All FTP Games LHH (Fastballs, Entire Z Contact Zone)")
+
+```
+
+#### RHH Fastballs Only (Only Middle Third)
+```{r}
+poc_tab_all_rfm <- poc_all %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall',
+                                    BatterSide == 'Right', TaggedPitchType == 'Fastball')
+
+poc_tab_all_rfm$ContactPositionX <- poc_tab_all_rfm$ContactPositionX * 12
+poc_tab_all_rfm$ContactPositionY <- poc_tab_all_rfm$ContactPositionY * 12
+poc_tab_all_rfm$ContactPositionZ <- poc_tab_all_rfm$ContactPositionZ * 12
+
+poc_tab_all_rfm <- poc_tab_all_rfm %>% filter( ContactPositionZ <  3.325, ContactPositionZ >  -3.325)
+
+#max(poc_tab_all$ContactPositionX)
+
+poc_tab_all_rfm <- poc_tab_all_rfm %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) %>% filter(Sample > 80)
+
+poc_tab_all_rfm$Range <- fct_explicit_na(poc_tab_all_rfm$Range, na_level = '(55,60]')
+
+#kable(poc_tab_all_rfm, caption = "All FTP Games RHH (Fastballs, Middle Third Contact Zone)")
+
+```
+
+#### LHH Fastballs Only (Only Middle Third)
+```{r}
+poc_tab_all_lfm <- poc_all %>% filter(!is.na(ContactPositionX), HitType != 'Bunt', PitchCall != 'FoulBall',
+                                    BatterSide == 'Left', TaggedPitchType == 'Fastball')
+
+
+
+
+poc_tab_all_lfm$ContactPositionX <- poc_tab_all_lfm$ContactPositionX * 12
+poc_tab_all_lfm$ContactPositionY <- poc_tab_all_lfm$ContactPositionY * 12
+poc_tab_all_lfm$ContactPositionZ <- poc_tab_all_lfm$ContactPositionZ * 12
+
+poc_tab_all_lfm <- poc_tab_all_lfm %>% filter( ContactPositionZ <  3.325, ContactPositionZ >  -3.325)
+
+#max(poc_tab_all$ContactPositionX)
+
+poc_tab_all_lfm <- poc_tab_all_lfm %>% group_by(Range= cut(ContactPositionX, breaks = seq(0, max(ContactPositionX), by = 5) ) ) %>% summarise(Sample = n(), `Exit Velo` = mean(ExitSpeed),`Pitch Speed` = mean(RelSpeed), `Horz Launch Angle` = mean(Direction), `Vert Launch Angle` = mean(Angle), `# HR's` = sum(PlayResult == 'HomeRun'), `HR %` = (sum(PlayResult == 'HomeRun')/n())*100) %>% filter(Sample > 55)
+
+poc_tab_all_lfm$Range <- fct_explicit_na(poc_tab_all_lfm$Range, na_level = '(55,60]')
+
+#kable(poc_tab_all_rf, caption = "All FTP Games LHH (Fastballs, Middle Third Contact Zone)")
+```
+
+
+### Histograms for Returning batters:
+
+```{r}
+castanon90 <- castanon %>% filter(exit_velo > 90, contact_x > 0, contact_x < 45 )
+ggplot(data = castanon90, aes(x = contact_x) ) +
+  geom_histogram(bins = 6, color = 'black', fill = 'lightblue') +
+   labs(title = 'POC Counts for Marcos Castanon (6 Bins)', x = 'X Contact Position', y = 'Count' ) +
+  geom_vline(xintercept = mean(castanon90$contact_x), linetype = 'dashed', size = 1)+
+  geom_text(aes(x = 23 , y = 3.5), label = 'Mean = 24.84')
+ 
+```
+
+```{r}
+johnson90 <- johnson %>% filter(exit_velo > 90, contact_x > 0, contact_x < 45 )
+ggplot(data = johnson90, aes(x = contact_x) ) +
+  geom_histogram(bins = 7, color = 'black', fill = 'lightblue') +
+  labs(title = 'POC Counts for Kyle Johnson (7 Bins)', x = 'X Contact Position', y = 'Count')+
+  geom_vline(xintercept = mean(johnson90$contact_x), linetype = 'dashed', size = 1)+
+  geom_text(aes(x = 18 , y = 4), label = 'Mean = 25.811' ) 
+```
+
+```{r}
+kirtley90 <- kirtley %>% filter(exit_velo > 90, contact_x > 0, contact_x < 45 )
+ggplot(data = kirtley90, aes(x = contact_x) ) +
+  geom_histogram(bins = 6, color = 'black', fill = 'lightblue') +
+  labs(title = 'POC Counts for Christian Kirtley (6 Bins)', x = 'X Contact Position', y = 'Count')+
+  geom_vline(xintercept = mean(kirtley90$contact_x), linetype = 'dashed', size = 1)+
+  geom_text(aes(x = 18 , y = 4), label = 'Mean = 14.77' ) 
+```
+
+```{r}
+mueller90 <- mueller %>% filter(exit_velo > 90, contact_x > 0, contact_x < 45 )
+ggplot(data = mueller90, aes(x = contact_x) ) +
+  geom_histogram(bins = 6, color = 'black', fill = 'lightblue') +
+  labs(title = 'POC Counts for Cole Mueller (6 Bins)', x = 'X Contact Position', y = 'Count')+
+  geom_vline(xintercept = mean(mueller90$contact_x), linetype = 'dashed', size = 1)+
+  geom_text(aes(x = 18 , y = 6), label = 'Mean = 22.98' )
+```
+
+```{r}
+oconnor90 <- oconnor %>% filter(exit_velo > 90, contact_x > 0, contact_x < 45 )
+ggplot(data = oconnor90, aes(x = contact_x) ) +
+  geom_histogram(bins = 6, color = 'black', fill = 'lightblue') +
+  labs(title = "POC Counts for McClain O'Connor (6 Bins)" , x = 'X Contact Position', y = 'Count')+
+  geom_vline(xintercept = mean(oconnor90$contact_x), linetype = 'dashed', size = 1)+
+  geom_text(aes(x = 27 , y = 9), label = 'Mean = 22.48' ) 
+```
+
+```{r}
+willow90 <- willow %>% filter(exit_velo > 90, contact_x > 0, contact_x < 45 )
+ggplot(data = willow90, aes(x = contact_x) ) +
+  geom_histogram(bins = 6, color = 'black', fill = 'lightblue') +
+  labs(title = "POC Counts for Jason Willow (6 Bins)" , x = 'X Contact Position', y = 'Count')+
+  geom_vline(xintercept = mean(willow90$contact_x), linetype = 'dashed', size = 1)+
+  geom_text(aes(x =32.5 , y = 6), label = 'Mean = 28.99' ) 
+```
+
+
