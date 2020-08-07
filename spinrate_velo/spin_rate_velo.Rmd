@@ -1,5 +1,5 @@
 ---
-title: "Sample Baseball Data Report"
+title: "Exploring the Relationship Between Spin Rate and Velocity"
 author: "Matthew Coleman"
 date: "4/19/2019"
 output: pdf_document
